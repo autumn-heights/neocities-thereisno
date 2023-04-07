@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Ebony & Ivory</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="icon" href="./favicon.ico" type="image/x-icon">
+
+  </head>
+  <body>
+    <main>
+
+      <div id="setup-panel">
+        <input type="number" id="board-height" name="board-height" min="2" max="100" value="8"> <label for="board-height"> rows </label> x 
+        <input type="number" id="board-width" name="board-width" min="2" max="100" value="8"> <label for="board-width"> columns </label>
+        <br>
+        <button id="setup-game" onclick="setupGame({'board':'canon'});">Set Up Canon Game</button> &nbsp;&nbsp;&nbsp;&nbsp;
+        <button id="setup-game" onclick="setupGame({'board':'quad'});">Set Up Quad Game</button> &nbsp;&nbsp;&nbsp;&nbsp;
+        <button id="setup-game" onclick="setupGame({'board':'trivial'});">Set Up Trivial Game</button><br>
+        
+        <br><br>
+
+      </div>
+
+
+      <div id="control-panel" style="display: none;">
+
+        <button id="play-single-move" onclick="playSingleMove();">Play single move</button> <br>
+        <button id="autoplay" onclick="autoplay();">Start Autoplay</button> <br>
+        <button id="end-game" onclick="endGame();">End Game</button> <br>
+
+      </div> <br>
+
+      <div id="chessboard"> - </div> <br> <br>
+
+    </main>
+	<script>
+
+    // define pisces
+    const PieceTypes = {
+        King: Symbol("King"),
+        Queen: Symbol("Queen"),
+        Rook: Symbol("Rook"),
+        Bishop: Symbol("Bishop"),
+        Knight: Symbol("Knight"),
+        Pawn: Symbol("Pawn")
+    }
+
+    class Game {
+
+        constructor(height, width) {
+            this.turn_number = 0;
+            this.board_height = height;
+            this.board_width = width;
+            this.pieces = [];
+            this.board = this.makeEmptyBoard(height, width);
+        }
+
+        makeEmptyBoard(height, width) {
+            //create empty 2D array
+            var board = new Array(board_height);
+            for (var row = 0; row < board_height; row++) {
+                board[row] = new Array(board_width);
+                for (var col = 0; col < board_width; col++) {
+                    board[row][col] = null;
+                }
+            }
+            return board
+        }
+
+        populateCanonBoard(board) {
+            // black up top
+            for (var col = 0; col < this.board_width; col++) {
+                this.spawnPiece(chooseMyBacklinePiece(col,this.board_width), 1, 0, col);
+                this.spawnPiece(PieceTypes.Pawn, 1, 1, col, {
+                  step_vec: [1, 0],
+                  has_sprint: false
+                });
+            }
+            // white down low
+            for (var col = 0; col < this.board_width; col++) {
+                this.spawnPiece(chooseMyBacklinePiece(col,this.board_width), 0, this.board_height-1, col);
+                this.spawnPiece(PieceTypes.Pawn, 0, this.board_height-2, col, {
+                    step_vec: [-1, 0],
+                    has_sprint: false
+                });
+            }
+        }
+
+        populateTrivialBoard(board) {
+          // black up top
+          this.spawnPiece(PieceTypes.Pawn, 1, 1, 0, {
+            step_vec: [1, 0],
+            has_sprint: false
+          });
+          // white down low
+          this.spawnPiece(PieceTypes.Pawn, 0, this.board_height-2, 7, {
+              step_vec: [-1, 0],
+              has_sprint: false
+          });
+        }
+
+        
+        populateQuadcolourBoard(board) {
+          // up top
+          for (var col = 2; col < this.board_width-2; col++) {
+            this.spawnPiece(chooseMyBacklinePiece(col,this.board_width), 2, 0, col);
+            this.spawnPiece(PieceTypes.Pawn, 2, 1, col, {
+              step_vec: [1, 0],
+              has_sprint: false
+            });
+          }
+          // down low
+          for (var col = 2; col < this.board_width-2; col++) {
+            this.spawnPiece(chooseMyBacklinePiece(col,this.board_width), 3, this.board_height-1, col);
+            this.spawnPiece(PieceTypes.Pawn, 3, this.board_height-2, col, {
+              step_vec: [-1, 0],
+              has_sprint: false
+            });
+          }
+          // left side
+          for (var row = 2; row < this.board_height-2; row++) {
+            this.spawnPiece(chooseMyBacklinePiece(row,this.board_height), 4, row, 0);
+            this.spawnPiece(PieceTypes.Pawn, 4, row, 1, {
+              step_vec: [0, 1],
+              has_sprint: false
+            });
+          }
+          // right side
+          for (var row = 2; row < this.board_height-2; row++) {
+            this.spawnPiece(chooseMyBacklinePiece(row,this.board_height), 5, row, this.board_width-1);
+            this.spawnPiece(PieceTypes.Pawn, 5, row, this.board_width-2, {
+              step_vec: [0, -1],
+              has_sprint: false
+            });
+          }
+        }
+
+        spawnPiece(type, colour, row, col, attributes) {
+            var newpiece = null;
+            switch (type) {
+                case (PieceTypes.King):
+                    newpiece = new PieceKing(colour, row, col);
+                    break;
+                case (PieceTypes.Queen):
+                    newpiece = new PieceQueen(colour, row, col);
+                    break;
+                case (PieceTypes.Rook):
+                    newpiece = new PieceRook(colour, row, col);
+                    break;
+                case (PieceTypes.Knight):
+                    newpiece = new PieceKnight(colour, row, col);
+                    break;
+                case (PieceTypes.Bishop):
+                    newpiece = new PieceBishop(colour, row, col);
+                    break;
+                case (PieceTypes.Pawn):
+                    newpiece = new PiecePawn(colour, row, col, attributes.step_vec, attributes.has_sprint);
+                    break;
+                default:
+                    break;
+            }
+            if (newpiece !== null) {
+                this.pieces.push(newpiece);
+                this.board[row][col] = newpiece;
+            } else {
+                console.log('Tried to spawn an invalid piece');
+            }
+        }
+
+
+        displayBoard() {
+            // generate the table HTML for the current board state 
+            var display_string = "<table>";
+            for (var row = 0; row < this.board_height; row++) {
+                display_string += "<tr>";
+                for (var col = 0; col < this.board_width; col++) {
+                    display_string += "<td>";
+                    var piece = this.getPieceAtPos(row, col);
+                    if (piece !== null) {
+                        display_string += piece.renderPiece();
+                    }
+                    display_string += "</td>";
+                }
+                display_string += "</tr>";
+            }
+            display_string += "</table>";
+            return display_string;
+        }
+
+
+        getTurnNumber() {
+            return this.turn_number;
+        }
+
+        getPieceAtPos(row, col) {
+            return this.board[row][col];
+        }
+
+        getMovesForPieceAt(row, col) {
+            return this.getPieceAtPos(row, col).getMovablePositions(this);
+        }
+
+        movePiece(from_row, from_col, to_row, to_col) {
+
+            var moving_piece = this.getPieceAtPos(from_row, from_col);
+            var target_piece = this.getPieceAtPos(to_row, to_col);
+
+            this.board[from_row][from_col] = null;
+            this.board[to_row][to_col] = moving_piece;
+            if (target_piece !== null) {
+                removeFromArr(this.pieces, target_piece);
+            }
+
+            moving_piece.updatePosition(to_row, to_col);
+
+            return 'todo';
+        }
+
+        // receives a coords and returns null if invalid coords, otherwise returns coords
+        // if the coords are oob but can be handled then handles
+        enforceRealPosition(coords) {
+            var row = coords[0];
+            var col = coords[1];
+            if ('wrapping' == 'on') {
+                row = row % this.board_height;
+                col = col % this.board_width;
+            }
+            if (0 <= row && row < this.board_height && 0 <= col && col < this.board_width) {
+                return [row, col];
+            }
+            return null;
+        }
+
+        checkVictory() {
+            return 'todo';
+        }
+    }
+
+
+
+
+    // generic Piece class
+    class Piece {
+        constructor(type, colour, row, col) {
+            this.type = type;
+            this.colour = colour;
+            this.row = row;
+            this.col = col;
+            this.movements = [];
+            this.steps_movable = 0;
+        }
+
+        // receives a board state and returns a list of 
+        // valid positions that can currently be moved to
+        
+        getMovablePositions(game) {
+            var moves = [];
+
+            // check multi directional extended movement
+            // generate new position > handle wrapping/oob > check if is empty (continues move) or enemy (valid move, but ends move) or invalid or friendly (ends move)
+            
+            for (let movement of this.movements) {
+              let end_of_the_road = false;
+              let steps_taken = 0;
+              let new_pos = [this.row, this.col];
+              while (!end_of_the_road) {
+                new_pos = game.enforceRealPosition([new_pos[0] + movement[0], new_pos[1] + movement[1]]);
+                if (new_pos === null) {
+                  // invalid
+                  end_of_the_road = true;
+                } else {
+                  let target_piece = game.getPieceAtPos(new_pos[0], new_pos[1])
+                  if (target_piece === null) {
+                    // empty
+                    moves.push(new_pos);
+                  } else if (target_piece.colour != this.colour) {
+                    // enemy
+                    moves.push(new_pos);
+                    end_of_the_road = true;
+                  } else {
+                    // friendly
+                    end_of_the_road = true;
+                  }
+                }
+                steps_taken++;
+                if (steps_taken >= this.steps_movable || this.steps_taken > move_attempts) end_of_the_road = true;
+              }
+            }
+
+            return moves;
+        }
+
+        updatePosition(row, col) {
+            this.row = row;
+            this.col = col;
+        }
+
+        // returns HTML text to go inside this piece's cell
+        // this works for all the basic piece types so you don't have to rewrite
+        renderPiece() {
+            var out = "";
+            switch (this.colour) {
+                case (0): out += "<div class=\"army-white\">"; break;
+                case (1): out += "<div class=\"army-black\">"; break;
+                case (2): out += "<div class=\"army-red\">"; break;
+                case (3): out += "<div class=\"army-blue\">"; break;
+                case (4): out += "<div class=\"army-green\">"; break;
+                case (5): out += "<div class=\"army-yellow\">"; break;
+                default: out += "<div class=\"army-grey\">";
+            }
+            switch (this.type) {
+                case (PieceTypes.King): out += "♚"; break;
+                case (PieceTypes.Queen): out += "♛"; break;
+                case (PieceTypes.Rook): out += "♜"; break;
+                case (PieceTypes.Bishop): out += "♝"; break;
+                case (PieceTypes.Knight): out += "♞"; break;
+                case (PieceTypes.Pawn): out += "♟︎"; break;
+                default: "?";
+            }
+            out += "</div>";
+            return out;
+        }
+    }
+
+
+
+    class PieceKing extends Piece {
+        constructor(colour, row, col) {
+            super(PieceTypes.King, colour, row, col);
+            this.steps_movable = 1;
+            this.movements = [
+              [+1, +1], [+1, 0], [+1, -1], [0, +1], [0, -1], [-1, +1], [-1, 0], [-1, -1],
+            ]
+        }
+    }
+
+    class PieceQueen extends Piece {
+        constructor(colour, row, col) {
+            super(PieceTypes.Queen, colour, row, col);
+            this.steps_movable = Infinity;
+            this.movements = [
+              [+1, +1], [+1, 0], [+1, -1], [0, +1], [0, -1], [-1, +1], [-1, 0], [-1, -1],
+            ]
+        }
+    }
+
+    class PieceRook extends Piece {
+        constructor(colour, row, col) {
+            super(PieceTypes.Rook, colour, row, col);
+            this.steps_movable = Infinity;
+            this.movements = [
+              [+1, 0], [-1, 0], [0, +1], [0, -1]
+            ]
+        }
+    }
+    
+    class PieceKnight extends Piece {
+        constructor(colour, row, col) {
+            super(PieceTypes.Knight, colour, row, col);
+            this.steps_movable = 1;
+            this.movement_1 = 1;
+            this.movement_2 = 2;
+            this.movements = [
+              [+this.movement_1, +this.movement_2], [+this.movement_1, -this.movement_2], [-this.movement_1, +this.movement_2], [-this.movement_1, +this.movement_2], 
+              [+this.movement_2, +this.movement_1], [+this.movement_2, -this.movement_1], [-this.movement_2, +this.movement_1], [-this.movement_2, +this.movement_1]
+            ];
+        }
+    }
+
+    
+    class PieceBishop extends Piece {
+        constructor(colour, row, col) {
+            super(PieceTypes.Bishop, colour, row, col);
+            this.steps_movable = Infinity;
+            this.movements = [
+              [+1, +1], [+1, -1], [-1, +1], [-1, -1]
+            ];
+        }
+
+    }
+
+    class PiecePawn extends Piece {
+        constructor(colour, row, col, step_vec, has_sprint = true) {
+            super(PieceTypes.Pawn, colour, row, col);
+            //movement values are -1,0,1 depending on ability to move horiz or vert
+            //will it always be a cardinal unit vector??? who knows
+            this.v_movement = step_vec[0];
+            this.h_movement = step_vec[1];
+            this.has_sprint = has_sprint;
+            this.can_promote = true;
+
+        }
+
+        getMovablePositions(game) {
+            var moves = [];
+            // one step
+            // generate new position > handle wrapping/oob > check is a real pos + is unoccupied
+            var one_step_pos = game.enforceRealPosition([this.row + this.v_movement, this.col + this.h_movement]);
+            if (one_step_pos !== null && game.getPieceAtPos(one_step_pos[0], one_step_pos[1]) === null) {
+                moves.push(one_step_pos);
+                // sprint
+                // generate new position > handle wrapping/oob > check is a real pos + is unoccupied + has sprint ready
+                var two_step_pos = game.enforceRealPosition([this.row + this.v_movement + this.v_movement, this.col + this.h_movement + this.h_movement]);
+                if (this.has_sprint && two_step_pos !== null && game.getPieceAtPos(two_step_pos[0], two_step_pos[1]) === null) {
+                    moves.push(one_step_pos);
+                }
+            }
+
+            //diagonal attacks
+            // generate new position > handle wrapping/oob > check is a real pos + is occupied + is occupied by enemy
+            var diag_left_pos = game.enforceRealPosition([this.row + this.v_movement + this.h_movement, this.col + this.v_movement + this.h_movement]);
+            if (diag_left_pos !== null) {
+                var diag_left_target = game.getPieceAtPos(diag_left_pos[0], diag_left_pos[1]);
+                if (diag_left_target !== null) {
+                    if (diag_left_target.colour != this.colour) {
+                        moves.push(diag_left_pos);
+                    }
+                }
+            }
+            var diag_right_pos = game.enforceRealPosition([this.row + this.v_movement - this.h_movement, this.col - this.v_movement + this.h_movement]);
+            if (diag_right_pos !== null) {
+                var diag_right_target = game.getPieceAtPos(diag_right_pos[0], diag_right_pos[1]);
+                if (diag_right_target !== null) {
+                    if (diag_right_target.colour != this.colour) {
+                        moves.push(diag_right_pos);
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        updatePosition(row, col) {
+          // deplete sprint if moved more than one step
+            if (Math.abs(this.row - row) > Math.abs(this.v_movement) || Math.abs(this.col - col) > Math.abs(this.h_movement)) {
+                this.has_sprint = false;
+            }
+
+            //promote if reached end of board
+            if (this.can_promote && ((this.row != row && (row == 0 || row == board_height-1) || (this.col != col && (col == 0 || col == board_width-1))))) {
+              this.row = row;
+              this.col = col;
+              this.promote();
+            } else {
+              this.row = row;
+              this.col = col;
+            }
+        }
+
+        promote() {
+          let promote_to = PieceTypes.Queen;
+          let row = this.row;
+          let col = this.col;
+          let colour = this.colour;
+          removeFromArr(gamestate.pieces, this); //oof ouch bad side effects
+          gamestate.spawnPiece(promote_to, colour, row, col);
+
+        }
+    }
+
+    
+
+
+    // UTIL
+
+    function rotateVector(vec, degrees) {
+        ang = (Math.PI / 180) * degrees;
+        return [
+            vec[0] * Math.cos(ang) - vec[1] * Math.sin(ang),
+            vec[0] * Math.sin(ang) + vec[1] * Math.cos(ang)
+        ]
+    }
+
+    function selectRandom(items) {
+        if (items.length > 0) {
+            return items[Math.floor(Math.random() * items.length)];
+        }
+        return null;
+    }
+
+    function removeFromArr(items, target_item) {
+        var idx = items.indexOf(target_item);
+        if (idx !== -1) {
+            items.splice(idx, 1);
+        }
+    }
+
+    function chooseMyBacklinePiece(n, width) {
+      let mid = Math.floor((width-1)/2);
+      let diff = Math.floor(Math.abs(n - ((width-1)/2)));
+      if ( n == mid ) {
+        return PieceTypes.King;
+      } else if ( n == mid + 1) {
+        return PieceTypes.Queen;
+      } else if (diff % 3 == 0) {
+        return PieceTypes.Rook;
+      } else if (diff % 3 == 1) {
+        return PieceTypes.Bishop;
+      } else if (diff % 3 == 2) {
+        return PieceTypes.Knight;
+      }
+    }
+
+    // HTML INTERFACE FUNCTIONS 
+
+    function printBoard() {
+        output.innerHTML = gamestate.displayBoard();
+    }
+
+    function playSingleMove() {
+        var success = false;
+        var tries_remaining = move_attempts;
+
+        while (!success && tries_remaining > 0) {
+            // pick a piece
+            var chosen_piece = selectRandom(gamestate.pieces);
+            var row = chosen_piece.row;
+            var col = chosen_piece.col;
+            console.log('Chosen piece at (' + row + ', ' + col + ')');
+            console.log(chosen_piece);
+
+            // pick a move
+            var moves = gamestate.getMovesForPieceAt(row, col);
+            console.log('Available moves: ' + moves);
+            if (moves.length > 0) {
+                var move = selectRandom(moves);
+                console.log('Moving to (' + move[0] + ', ' + move[1] + ')');
+
+                // execute move
+                gamestate.movePiece(row, col, move[0], move[1])
+                success = true;
+            }
+
+            tries_remaining -= 1
+
+        }
+        printBoard();
+    }
+
+    function autoplay() {
+        if (autoplay_timer === null) {
+            autoplay_button.innerHTML = "Stop Autoplay";
+            autoplay_timer = window.setInterval(playSingleMove, autoplay_interval_length);
+        } else {
+            autoplay_button.innerHTML = "Start Autoplay";
+            window.clearInterval(autoplay_timer);
+            autoplay_timer = null;
+        }
+    }
+
+    // INIT
+
+    const move_attempts = 1000;
+    const autoplay_interval_length = 400;
+
+    setup_panel = document.getElementById('setup-panel');
+    control_panel = document.getElementById('control-panel');
+    output = document.getElementById('chessboard');
+    single_move_button = document.getElementById('play-single-move');
+    autoplay_button = document.getElementById('autoplay');
+    autoplay_timer = null;
+
+    function setupGame(attributes) {
+
+      board_height = document.getElementById('board-height').value;
+      board_width = document.getElementById('board-width').value;
+      gamestate = new Game(board_height, board_width);
+
+      if (attributes['board'] == 'canon') {
+        gamestate.populateCanonBoard();
+      } else if (attributes['board'] == 'trivial') {
+        gamestate.populateTrivialBoard();
+      } else if (attributes['board'] == 'quad') {
+        gamestate.populateQuadcolourBoard();
+      }
+      output.innerHTML = gamestate.displayBoard();
+
+      setup_panel.style.display = 'none';
+      control_panel.style.display = 'block';
+
+    }
+
+    function endGame() {
+      window.clearInterval(autoplay_timer);
+      setup_panel.style.display = 'block';
+      control_panel.style.display = 'none';
+    }
+    
+  </script>
+  </body>
+</html>

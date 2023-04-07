@@ -1,0 +1,54 @@
+
+
+body {
+	background: #f5ffc3;
+	padding: 20px;
+}
+
+table {
+	margin: 0 auto;
+	border-collapse: collapse;
+	background: rgb(144, 111, 194);
+}
+td {
+    width: 32px; height: 32px;
+    text-align: center;
+    font-size: 24px;
+    font-family: monospace;
+    text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black;
+}
+
+tr:nth-child(odd) td:nth-child(even), tr:nth-child(even) td:nth-child(odd) {
+	background: rgb(196, 164, 235);
+}
+
+#setup-panel {
+    text-align: center;
+}
+
+#control-panel {
+    text-align: center;
+}
+
+.army-white {
+    color: white;
+}
+.army-black {
+    color: black;
+    text-shadow: -1px -1px 0 white, 1px -1px 0 white, -1px 1px 0 white, 1px 1px 0 white;
+}
+.army-grey {
+    color: grey;
+}
+.army-red {
+    color: red;
+}
+.army-blue {
+    color: blue;
+}
+.army-green {
+    color: green;
+}
+.army-yellow {
+    color: yellow;
+}
